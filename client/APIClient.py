@@ -5,7 +5,6 @@ import urllib3
 
 from robot.api import logger
 
-
 class ITBConnector:
     ROBOT_LIBRARY_SCOPE = 'TEST SUITE'
     ROBOT_LIBRARY_VERSION = '0.1'
@@ -22,25 +21,12 @@ class ITBConnector:
     test_step_status_passed: str = 'Passed'
     test_step_status_failed: str = 'Failed'
 
-    __base_url: str
-    __headers: dict = {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Charset': 'UTF-8'
-    }
-    __tenant_name: str
-    __tenant_id: int = -1
-    __username: str
-    __password: str
-    __user_id: int = -1
-    __product_id: str
     __test_id: str
     __test_name: str
     __test_steps: [dict] = []
     __mark_for_review: bool
     __overwrite: bool
     __test_description: str
-    __session: requests.sessions
 
     def __init__(self):
         # TODO: Make sure these settings are not needed here
