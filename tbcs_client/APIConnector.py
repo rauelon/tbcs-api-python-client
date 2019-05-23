@@ -9,6 +9,10 @@ class APIConnector:
     test_step_status_undefined: str = 'Undefined'
     test_step_status_passed: str = 'Passed'
     test_step_status_failed: str = 'Failed'
+    test_status_calculated: str = 'Calculated'
+    test_status_failed: str = 'Failed'
+    test_status_inprogress: str = 'InProgress'
+    test_status_passed: str = 'Passed'
 
     __base_url: str
     __headers: dict
@@ -34,10 +38,9 @@ class APIConnector:
         self.__username = username
         self.__password = password
         self.__session = requests.Session()
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        self.__session.verify = False
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)  # TODO
+        self.__session.verify = False  # TODO
         self.__log_in()
-
 
     def create_testcase(
             self,
@@ -90,7 +93,7 @@ class APIConnector:
             self,
             external_id: str
     ) -> dict:
-        return '' # TODO
+        return {}  # TODO
 
     def get_testcase_by_id(
             self,
@@ -106,7 +109,7 @@ class APIConnector:
 
     def start_execution(
             self,
-            testcase_id
+            testcase_id: str
     ) -> str:
         response: requests.Response = self.__send_request(
             http_method=self.__session.post,
@@ -115,6 +118,25 @@ class APIConnector:
         )
 
         return str(json.loads(response.text)['executionId'])
+
+    def get_execution(
+            self,
+            external_id
+    ) -> dict:
+        return {}  # TODO
+
+    def get_execution_by_id(
+            self,
+            testcase_id: str,
+            execution_id: str
+    ) -> dict:
+        response: requests.Response = self.__send_request(
+            http_method=self.__session.get,
+            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/executions/testCases/{testcase_id}/executions/{execution_id}',
+            expected_status_code=200
+        )
+
+        return json.loads(response.text)
 
     def report_step_result(
             self,
@@ -133,17 +155,15 @@ class APIConnector:
     def report_testcase_result(
             self,
             testcase_id,
-            executio_id,
+            execution_id,
             result
     ):
         result_data: dict = {
-            'executionStatus': result,
-            'responsibles': [],
-            'customFields': []
+            'executionStatus': result
         }
         self.__send_request(
             http_method=self.__session.patch,
-            endpoint=f'/api/tentants/{self.__tenant_id}/products/{self.__product_id}/executions/testCases/{testcase_id}/executions/{executio_id}',
+            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/executions/testCases/{testcase_id}/executions/{execution_id}',
             expected_status_code=200,
             data=json.dumps(result_data)
         )
