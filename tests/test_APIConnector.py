@@ -22,15 +22,7 @@ def new_testcase_external_id() -> str:
 
 
 def get_test_connector() -> tbcs_client.APIConnector:
-    os.environ['no_proxy'] = '*'
-    os.environ['NO_PROXY'] = '*'
-    return tbcs_client.APIConnector(
-        'localhost.testbench.com',
-        'rfimbus',
-        '1',
-        'first',
-        'first123'
-    )
+    return tbcs_client.APIConnector()
 
 
 def test_get_testcase():

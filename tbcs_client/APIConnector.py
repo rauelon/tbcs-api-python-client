@@ -1,5 +1,6 @@
 import requests
 import json
+import os
 import urllib3
 
 from typing import List
@@ -24,23 +25,22 @@ class APIConnector:
     __product_id: str
     __session: requests.sessions
 
-    def __init__(
-            self,
-            server_address: str,
-            tenant_name: str,
-            product_id: str,
-            username: str,
-            password: str
-    ):
-        self.__base_url = f'https://{server_address}'
-        self.__tenant_name = tenant_name
-        self.__product_id = product_id
-        self.__username = username
-        self.__password = password
-        self.__session = requests.Session()
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)  # TODO
-        self.__session.verify = False  # TODO
-        self.__log_in()
+    def __init__(self):
+        with open('../tbcs.config.json') as config_file:
+            config_data: dict = json.load(config_file)
+            self.__base_url = f'https://{config_data["server_address"]}'
+            self.__tenant_name = config_data['tenant_name']
+            self.__product_id = config_data['product_id']
+            self.__username = config_data['tenant_user']
+            self.__password = config_data['password']
+            if not config_data['use_system_proxy']:
+                os.environ['no_proxy'] = '*'
+                os.environ['NO_PROXY'] = '*'
+
+            self.__session = requests.Session()
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)  # TODO
+            self.__session.verify = False  # TODO
+            self.__log_in()
 
     def create_testcase(
             self,

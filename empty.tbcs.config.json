@@ -1,0 +1,8 @@
+{
+  "server_address": "localhost.testbench.com",
+  "tenant_name": "mytenant",
+  "product_id": 1,
+  "tenant_user": "myuser",
+  "password": "mypassword",
+  "use_system_proxy": true
+}
