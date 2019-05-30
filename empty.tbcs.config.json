@@ -1,4 +1,5 @@
 {
+  "comment for usage": "To be effective rename this file to tbcs.config.json",
   "server_address": "localhost.testbench.com",
   "tenant_name": "mytenant",
   "product_id": 1,

@@ -5,6 +5,17 @@ import urllib3
 
 from typing import List
 
+""" Class for connecting to a TestBench CS REST-API
+
+The APIConnector class wraps a set of API-calls against the TestBench CS REST-API, that can be used to
+create test_cases within TestBench CS, start test executions and report test results. This class expects
+a JSON-configuration file with name 'tbcs.config.json' to be placed inside your project root.
+
+When provided with valid configuration, you can simply call any of this classes get-, create- and
+report-functions from any instance of this class. Redundant steps such as authenticating with the API
+are handled internally.
+"""
+
 
 class APIConnector:
     test_step_status_undefined: str = 'Undefined'
@@ -42,9 +53,9 @@ class APIConnector:
             self.__session.verify = False  # TODO
             self.__log_in()
 
-    def create_testcase(
+    def create_test_case(
             self,
-            testcase_name: str,
+            test_case_name: str,
             external_id: str,
             test_steps: List[str]
     ) -> str:
@@ -52,14 +63,14 @@ class APIConnector:
             http_method=self.__session.post,
             endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases',
             expected_status_code=201,
-            data=json.dumps({'name': testcase_name})
+            data=json.dumps({'name': test_case_name})
         )
 
-        testcase_id: str = str(json.loads(response_create.text)['testCaseId'])
+        test_case_id: str = str(json.loads(response_create.text)['testCaseId'])
 
-        testcase_data: dict = {
-            'name': testcase_name,
-            'description': {'text': testcase_name},
+        test_case_data: dict = {
+            'name': test_case_name,
+            'description': {'text': test_case_name},
             'responsibles': [self.__user_id],
             'customFields': [],
             'isAutomated': True,
@@ -69,9 +80,9 @@ class APIConnector:
 
         self.__send_request(
             http_method=self.__session.patch,
-            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases/{testcase_id}',
+            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases/{test_case_id}',
             expected_status_code=200,
-            data=json.dumps(testcase_data)
+            data=json.dumps(test_case_data)
         )
 
         for test_step in test_steps:
@@ -82,26 +93,26 @@ class APIConnector:
 
             self.__send_request(
                 http_method=self.__session.post,
-                endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases/{testcase_id}/testSteps',
+                endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases/{test_case_id}/testSteps',
                 expected_status_code=201,
                 data=json.dumps(test_step_data)
             )
 
-        return testcase_id
+        return test_case_id
 
-    def get_testcase(
+    def get_test_case_by_external_id(
             self,
             external_id: str
     ) -> dict:
         return {}  # TODO
 
-    def get_testcase_by_id(
+    def get_test_case_by_id(
             self,
-            testcase_id: str
+            test_case_id: str
     ) -> dict:
         response: requests.Response = self.__send_request(
             http_method=self.__session.get,
-            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases/{testcase_id}',
+            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases/{test_case_id}',
             expected_status_code=200
         )
 
@@ -109,17 +120,17 @@ class APIConnector:
 
     def start_execution(
             self,
-            testcase_id: str
+            test_case_id: str
     ) -> str:
         response: requests.Response = self.__send_request(
             http_method=self.__session.post,
-            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/executions/testCases/{testcase_id}',
+            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/executions/testCases/{test_case_id}',
             expected_status_code=201
         )
 
         return str(json.loads(response.text)['executionId'])
 
-    def get_execution(
+    def get_execution_by_external_id(
             self,
             external_id
     ) -> dict:
@@ -127,12 +138,12 @@ class APIConnector:
 
     def get_execution_by_id(
             self,
-            testcase_id: str,
+            test_case_id: str,
             execution_id: str
     ) -> dict:
         response: requests.Response = self.__send_request(
             http_method=self.__session.get,
-            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/executions/testCases/{testcase_id}/executions/{execution_id}',
+            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/executions/testCases/{test_case_id}/executions/{execution_id}',
             expected_status_code=200
         )
 
@@ -140,21 +151,21 @@ class APIConnector:
 
     def report_step_result(
             self,
-            testcase_id,
+            test_case_id,
             execution_id,
             test_step_id,
             result
     ):
         self.__send_request(
             http_method=self.__session.put,
-            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/executions/testCases/{testcase_id}/executions/{execution_id}/testSteps/{test_step_id}/result',
+            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/executions/testCases/{test_case_id}/executions/{execution_id}/testSteps/{test_step_id}/result',
             expected_status_code=200,
             data=f'"{result}"'
         )
 
-    def report_testcase_result(
+    def report_test_case_result(
             self,
-            testcase_id,
+            test_case_id,
             execution_id,
             result
     ):
@@ -163,7 +174,7 @@ class APIConnector:
         }
         self.__send_request(
             http_method=self.__session.patch,
-            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/executions/testCases/{testcase_id}/executions/{execution_id}',
+            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/executions/testCases/{test_case_id}/executions/{execution_id}',
             expected_status_code=200,
             data=json.dumps(result_data)
         )

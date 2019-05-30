@@ -1,0 +1,10 @@
+setup.py
+tbcs_api_client.egg-info/PKG-INFO
+tbcs_api_client.egg-info/SOURCES.txt
+tbcs_api_client.egg-info/dependency_links.txt
+tbcs_api_client.egg-info/requires.txt
+tbcs_api_client.egg-info/top_level.txt
+tbcs_client/APIConnector.py
+tbcs_client/__init__.py
+tests/__init__.py
+tests/test_APIConnector.py
