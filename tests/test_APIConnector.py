@@ -39,9 +39,9 @@ def test_get_test_case_by_id():
 
 
 def test_get_execution_by_external_id():
-    execution: dict = get_test_connector().get_execution_by_external_id(test_case_for_validation['externalId'])
+    execution: dict = get_test_connector().get_last_execution_by_external_id(test_case_for_validation['externalId'])
     assert (execution['test_Case']['name'] == test_case_for_validation['name'])
-    assert (execution['id'] == test_case_for_validation['id'])
+    assert (execution['id'] == test_case_for_validation['executions'][0]['id'])
 
 
 def test_get_execution_by_id():

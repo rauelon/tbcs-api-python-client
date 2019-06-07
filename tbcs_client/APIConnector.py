@@ -104,7 +104,26 @@ class APIConnector:
             self,
             external_id: str
     ) -> dict:
-        return {}  # TODO
+        # TODO: As soon as CS allows filters reimplement this method using filters
+        response: requests.Response = self.__send_request(
+            http_method=self.__session.get,
+            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases/',
+            expected_status_code=200
+        )
+
+        tests: List[dict] = json.loads(response.text)
+
+        for test in tests:
+            response = self.__send_request(
+                http_method=self.__session.get,
+                endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases/{str(test["id"])}',
+                expected_status_code=200
+            )
+            test_data: dict = json.loads(response.text)
+            if test_data['externalId'] == external_id:
+                return test_data
+
+        return {'name': 'Not found', 'id': -1}
 
     def get_test_case_by_id(
             self,
@@ -130,11 +149,13 @@ class APIConnector:
 
         return str(json.loads(response.text)['executionId'])
 
-    def get_execution_by_external_id(
+    def get_last_execution_by_external_id(
             self,
             external_id
     ) -> dict:
-        return {}  # TODO
+        # TODO: Can't be implemented right now, because there is no endpoint for getting all executions for a specific testcase
+        # TODO: As soon as CS allows filters reimplement this method using filters
+        return {}
 
     def get_execution_by_id(
             self,
