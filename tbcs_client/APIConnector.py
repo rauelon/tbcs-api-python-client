@@ -86,19 +86,34 @@ class APIConnector:
         )
 
         for test_step in test_steps:
-            test_step_data: dict = {
-                'testStepBlock': 'Test',
-                'description': test_step
-            }
-
-            self.__send_request(
-                http_method=self.__session.post,
-                endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases/{test_case_id}/testSteps',
-                expected_status_code=201,
-                data=json.dumps(test_step_data)
-            )
+            self.add_test_step(test_case_id, test_step)
 
         return test_case_id
+
+    def add_test_step(self, test_case_id: str, test_step: str, previous_test_step_id: str = '-1'):
+        test_step_data: dict = {
+            'testStepBlock': 'Test',
+            'description': test_step
+        }
+        if not previous_test_step_id == '-1':
+            test_step_data['position'] = {
+                'relation': 'After',
+                'testStepId': previous_test_step_id
+            }
+
+        self.__send_request(
+            http_method=self.__session.post,
+            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases/{test_case_id}/testSteps',
+            expected_status_code=201,
+            data=json.dumps(test_step_data)
+        )
+
+    def remove_test_step(self, test_case_id:str, test_step_id: str):
+        self.__send_request(
+            http_method=self.__session.delete,
+            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases/{test_case_id}/testSteps/{test_step_id}',
+            expected_status_code=200
+        )
 
     def get_test_case_by_external_id(
             self,
