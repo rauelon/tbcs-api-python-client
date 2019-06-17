@@ -3,8 +3,8 @@ import json
 import os
 import urllib3
 
-from APIError import APIError
-from ItemNotFoundError import ItemNotFoundError
+from . import APIError
+from . import ItemNotFoundError
 
 from typing import List
 
