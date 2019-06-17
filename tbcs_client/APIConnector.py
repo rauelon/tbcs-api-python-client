@@ -3,8 +3,7 @@ import json
 import os
 import urllib3
 
-from . import APIError
-from . import ItemNotFoundError
+import tbcs_client
 
 from typing import List
 
@@ -143,7 +142,7 @@ class APIConnector:
             if test_data['externalId'] == external_id:
                 return test_data
 
-        raise ItemNotFoundError(f'No test case found with external ID: {external_id}')
+        raise tbcs_client.ItemNotFoundError(f'No test case found with external ID: {external_id}')
 
     def get_test_case_by_id(
             self,
@@ -234,7 +233,7 @@ class APIConnector:
         elif response.status_code == expected_status_code:
             return response
         else:
-            raise APIError(f'{endpoint} failed with message {response.text}')
+            raise tbcs_client.APIError(f'{endpoint} failed with message {response.text}')
 
     def __log_in(self):
         self.__headers: dict = {
