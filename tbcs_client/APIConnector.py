@@ -3,6 +3,9 @@ import json
 import os
 import urllib3
 
+from APIError import APIError
+from ItemNotFoundError import ItemNotFoundError
+
 from typing import List
 
 """ Class for connecting to a TestBench CS REST-API
@@ -23,7 +26,7 @@ class APIConnector:
     test_step_status_failed: str = 'Failed'
     test_status_calculated: str = 'Calculated'
     test_status_failed: str = 'Failed'
-    test_status_inprogress: str = 'InProgress'
+    test_status_in_progress: str = 'InProgress'
     test_status_passed: str = 'Passed'
 
     __base_url: str
@@ -90,7 +93,7 @@ class APIConnector:
 
         return test_case_id
 
-    def add_test_step(self, test_case_id: str, test_step: str, previous_test_step_id: str = '-1'):
+    def add_test_step(self, test_case_id: str, test_step: str, previous_test_step_id: str = '-1') -> str:
         test_step_data: dict = {
             'testStepBlock': 'Test',
             'description': test_step
@@ -101,14 +104,16 @@ class APIConnector:
                 'testStepId': previous_test_step_id
             }
 
-        self.__send_request(
+        response_create: requests.Response = self.__send_request(
             http_method=self.__session.post,
             endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases/{test_case_id}/testSteps',
             expected_status_code=201,
             data=json.dumps(test_step_data)
         )
 
-    def remove_test_step(self, test_case_id:str, test_step_id: str):
+        return str(json.loads(response_create.text)['testStepId'])
+
+    def remove_test_step(self, test_case_id: str, test_step_id: str):
         self.__send_request(
             http_method=self.__session.delete,
             endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases/{test_case_id}/testSteps/{test_step_id}',
@@ -138,7 +143,7 @@ class APIConnector:
             if test_data['externalId'] == external_id:
                 return test_data
 
-        return {'name': 'Not found', 'id': -1}
+        raise ItemNotFoundError(f'No test case found with external ID: {external_id}')
 
     def get_test_case_by_id(
             self,
@@ -163,14 +168,6 @@ class APIConnector:
         )
 
         return str(json.loads(response.text)['executionId'])
-
-    def get_last_execution_by_external_id(
-            self,
-            external_id
-    ) -> dict:
-        # TODO: Can't be implemented right now, because there is no endpoint for getting all executions for a specific testcase
-        # TODO: As soon as CS allows filters reimplement this method using filters
-        return {}
 
     def get_execution_by_id(
             self,
@@ -237,8 +234,7 @@ class APIConnector:
         elif response.status_code == expected_status_code:
             return response
         else:
-            # TODO: Error handling (e.g. headers and data)
-            raise Exception(f'{endpoint} failed', response.text)
+            raise APIError(f'{endpoint} failed with message {response.text}')
 
     def __log_in(self):
         self.__headers: dict = {

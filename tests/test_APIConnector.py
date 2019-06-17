@@ -1,9 +1,11 @@
 from typing import List
+import json
 import random
 import string
 import time
 
-import tbcs_client
+from ItemNotFoundError import ItemNotFoundError
+from APIConnector import APIConnector
 
 test_case_for_validation: dict = {
     'id': 1,
@@ -22,8 +24,8 @@ def new_test_case_external_id() -> str:
     return ''.join(random.choices(string.ascii_letters + string.digits, k=24))
 
 
-def get_test_connector() -> tbcs_client.APIConnector:
-    return tbcs_client.APIConnector()
+def get_test_connector() -> APIConnector:
+    return APIConnector()
 
 
 def test_get_test_case_by_external_id():
@@ -32,16 +34,18 @@ def test_get_test_case_by_external_id():
     assert (test_case['id'] == test_case_for_validation['id'])
 
 
+def test_get_test_case_by_external_id_negative():
+    try:
+        test_case: dict = get_test_connector().get_test_case_by_external_id('some not existing external ID')
+        raise Exception(f'Test case was matched. Data returned: {json.dumps(test_case)}')
+    except ItemNotFoundError:
+        pass
+
+
 def test_get_test_case_by_id():
     test_case: dict = get_test_connector().get_test_case_by_id(str(test_case_for_validation['id']))
     assert (test_case['name'] == test_case_for_validation['name'])
     assert (test_case['externalId'] == test_case_for_validation['externalId'])
-
-
-def test_get_execution_by_external_id():
-    execution: dict = get_test_connector().get_last_execution_by_external_id(test_case_for_validation['externalId'])
-    assert (execution['test_Case']['name'] == test_case_for_validation['name'])
-    assert (execution['id'] == test_case_for_validation['executions'][0]['id'])
 
 
 def test_get_execution_by_id():
@@ -54,7 +58,7 @@ def test_get_execution_by_id():
 
 
 def test_create_test_case():
-    connector: tbcs_client.APIConnector = get_test_connector()
+    connector: APIConnector = get_test_connector()
     external_id: str = new_test_case_external_id()
     test_case_id: str = connector.create_test_case(
         new_test_case_name,
@@ -74,7 +78,7 @@ def test_create_test_case():
 
 
 def test_start_execution():
-    connector: tbcs_client.APIConnector = get_test_connector()
+    connector: APIConnector = get_test_connector()
     external_id: str = new_test_case_external_id()
     test_case_id: str = connector.create_test_case(
         new_test_case_name,
@@ -95,7 +99,7 @@ def test_start_execution():
 
 
 def test_report_step_result():
-    connector: tbcs_client.APIConnector = get_test_connector()
+    connector: APIConnector = get_test_connector()
     test_case_id: str = connector.create_test_case(
         new_test_case_name,
         new_test_case_external_id(),
@@ -110,13 +114,13 @@ def test_report_step_result():
         test_case_id,
         execution_id,
         '1',
-        tbcs_client.APIConnector.test_step_status_passed
+        APIConnector.test_step_status_passed
     )
     connector.report_step_result(
         test_case_id,
         execution_id,
         '2',
-        tbcs_client.APIConnector.test_step_status_failed
+        APIConnector.test_step_status_failed
     )
     time.sleep(1)
 
@@ -125,13 +129,13 @@ def test_report_step_result():
         execution_id
     )['testStepBlocks'][2]['steps']
 
-    assert (execution_steps[0]['result'] == tbcs_client.APIConnector.test_step_status_passed)
-    assert (execution_steps[1]['result'] == tbcs_client.APIConnector.test_step_status_failed)
-    assert (execution_steps[2]['result'] == tbcs_client.APIConnector.test_step_status_undefined)
+    assert (execution_steps[0]['result'] == APIConnector.test_step_status_passed)
+    assert (execution_steps[1]['result'] == APIConnector.test_step_status_failed)
+    assert (execution_steps[2]['result'] == APIConnector.test_step_status_undefined)
 
 
 def test_report_test_case_result():
-    connector: tbcs_client.APIConnector = get_test_connector()
+    connector: APIConnector = get_test_connector()
     test_case_id: str = connector.create_test_case(
         new_test_case_name,
         new_test_case_external_id(),
@@ -146,12 +150,12 @@ def test_report_test_case_result():
         test_case_id,
         execution_id
     )
-    assert (execution['overallStatus']['status'] == tbcs_client.APIConnector.test_status_inprogress)
+    assert (execution['overallStatus']['status'] == APIConnector.test_status_in_progress)
 
     connector.report_test_case_result(
         test_case_id,
         execution_id,
-        tbcs_client.APIConnector.test_status_passed
+        APIConnector.test_status_passed
     )
     time.sleep(1)
 
@@ -159,4 +163,4 @@ def test_report_test_case_result():
         test_case_id,
         execution_id
     )
-    assert (execution['overallStatus']['status'] == tbcs_client.APIConnector.test_status_passed)
+    assert (execution['overallStatus']['status'] == APIConnector.test_status_passed)
