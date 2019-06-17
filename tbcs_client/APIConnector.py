@@ -38,8 +38,8 @@ class APIConnector:
     __product_id: str
     __session: requests.sessions
 
-    def __init__(self):
-        with open('../tbcs.config.json') as config_file:
+    def __init__(self, config_ulr: str = '../tbcs.config.json'):
+        with open(config_ulr) as config_file:
             config_data: dict = json.load(config_file)
             self.__base_url = f'https://{config_data["server_address"]}'
             self.__tenant_name = config_data['tenant_name']
