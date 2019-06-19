@@ -2,8 +2,8 @@ from setuptools import setup, find_packages
 
 setup(
     name='tbcs_api_client',
-    version='0.9',
-    packages=find_packages(),
+    version='0.10',
+    packages=find_packages(exclude=['tests']),
 
     install_requires=['requests'],
 
