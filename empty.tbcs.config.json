@@ -1,9 +1,9 @@
 {
-  "comment for usage": "To be effective rename this file to tbcs.config.json",
-  "server_address": "localhost.testbench.com",
+  "server_address": "trynow01-eu.testbench.com",
   "tenant_name": "mytenant",
   "product_id": 1,
   "tenant_user": "myuser",
   "password": "mypassword",
-  "use_system_proxy": true
+  "use_system_proxy": true,
+  "truststore_path": "/usr/lib/python3/dist-packages/certifi/cacert.pem"
 }

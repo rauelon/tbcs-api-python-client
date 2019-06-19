@@ -38,8 +38,8 @@ class APIConnector:
     __product_id: str
     __session: requests.sessions
 
-    def __init__(self, config_ulr: str = '../tbcs.config.json'):
-        with open(config_ulr) as config_file:
+    def __init__(self, config_path: str = '../tbcs.config.json'):
+        with open(config_path) as config_file:
             config_data: dict = json.load(config_file)
             self.__base_url = f'https://{config_data["server_address"]}'
             self.__tenant_name = config_data['tenant_name']
@@ -51,8 +51,7 @@ class APIConnector:
                 os.environ['NO_PROXY'] = '*'
 
             self.__session = requests.Session()
-            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)  # TODO
-            self.__session.verify = False  # TODO
+            self.__session.verify = config_data['truststore_path'] if not os.name == 'nt' else True
             self.__log_in()
 
     def create_test_case(
