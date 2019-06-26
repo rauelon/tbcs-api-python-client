@@ -1,7 +1,7 @@
 import requests
 import json
 import os
-import urllib3
+import time
 
 import tbcs_client
 
@@ -37,6 +37,7 @@ class APIConnector:
     __user_id: int = -1
     __product_id: str
     __session: requests.sessions
+    __persist_timeout: int = 30
 
     def __init__(self, config_path: str = '../tbcs.config.json'):
         with open(config_path) as config_file:
@@ -86,6 +87,19 @@ class APIConnector:
             data=json.dumps(test_case_data)
         )
 
+        for counter in range(self.__persist_timeout):
+            try:
+                written_data: dict = self.get_test_case_by_id(test_case_id)
+                if written_data['externalId'] == external_id:
+                    break
+                elif counter == self.__persist_timeout:
+                    raise tbcs_client.APIError('Persistence of test case data not achieved before timeout.')
+                time.sleep(1)
+            except tbcs_client.APIError as error:
+                if counter == self.__persist_timeout:
+                    raise error
+                time.sleep(1)
+
         for test_step in test_steps:
             self.add_test_step(test_case_id, test_step)
 
@@ -109,7 +123,21 @@ class APIConnector:
             data=json.dumps(test_step_data)
         )
 
-        return str(json.loads(response_create.text)['testStepId'])
+        test_step_id: str = str(json.loads(response_create.text)['testStepId'])
+        for counter in range(self.__persist_timeout):
+            written_data: dict = self.get_test_case_by_id(test_case_id)
+            write_completed: bool = False
+            for test_step in written_data['testStepBlocks'][2]['steps']:
+                if str(test_step['id']) == test_step_id:
+                    write_completed = True
+                    break
+            if write_completed:
+                break
+            elif counter == self.__persist_timeout:
+                raise tbcs_client.APIError('Persistence of test step not achieved before timeout.')
+            time.sleep(1)
+
+        return test_step_id
 
     def remove_test_step(self, test_case_id: str, test_step_id: str):
         self.__send_request(
@@ -117,6 +145,19 @@ class APIConnector:
             endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases/{test_case_id}/testSteps/{test_step_id}',
             expected_status_code=200
         )
+
+        for counter in range(self.__persist_timeout):
+            written_data: dict = self.get_test_case_by_id(test_case_id)
+            write_completed: bool = True
+            for test_step in written_data['testStepBlocks'][2]['steps']:
+                if str(test_step['id']) == test_step_id:
+                    write_completed = False
+                    break
+            if write_completed:
+                break
+            elif counter == self.__persist_timeout:
+                raise tbcs_client.APIError('Persistence of test step not achieved before timeout.')
+            time.sleep(1)
 
     def get_test_case_by_external_id(
             self,
@@ -165,7 +206,18 @@ class APIConnector:
             expected_status_code=201
         )
 
-        return str(json.loads(response.text)['executionId'])
+        execution_id: str = str(json.loads(response.text)['executionId'])
+
+        for counter in range(self.__persist_timeout):
+            try:
+                written_data: dict = self.get_execution_by_id(test_case_id, execution_id)
+                break
+            except:
+                if counter == self.__persist_timeout:
+                    raise tbcs_client.APIError('Persistence of execution not achieved before timeout.')
+                time.sleep(1)
+
+        return execution_id
 
     def get_execution_by_id(
             self,

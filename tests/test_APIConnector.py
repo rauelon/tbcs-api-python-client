@@ -2,7 +2,6 @@ from typing import List
 import json
 import random
 import string
-import time
 
 import tbcs_client
 
@@ -64,7 +63,6 @@ def test_create_test_case():
         external_id,
         new_test_case_test_steps
     )
-    time.sleep(1)
 
     test_case: dict = connector.get_test_case_by_id(test_case_id)
     response_steps: List[dict] = test_case['testStepBlocks'][2]['steps']
@@ -84,10 +82,8 @@ def test_start_execution():
         external_id,
         new_test_case_test_steps
     )
-    time.sleep(1)
 
     execution_id: str = connector.start_execution(test_case_id)
-    time.sleep(1)
 
     execution: dict = connector.get_execution_by_id(
         test_case_id,
@@ -104,10 +100,8 @@ def test_report_step_result():
         new_test_case_external_id(),
         new_test_case_test_steps
     )
-    time.sleep(1)
 
     execution_id: str = connector.start_execution(test_case_id)
-    time.sleep(1)
 
     connector.report_step_result(
         test_case_id,
@@ -121,7 +115,6 @@ def test_report_step_result():
         '2',
         tbcs_client.APIConnector.test_step_status_failed
     )
-    time.sleep(1)
 
     execution_steps: dict = connector.get_execution_by_id(
         test_case_id,
@@ -140,10 +133,8 @@ def test_report_test_case_result():
         new_test_case_external_id(),
         new_test_case_test_steps
     )
-    time.sleep(1)
 
     execution_id: str = connector.start_execution(test_case_id)
-    time.sleep(1)
 
     execution: dict = connector.get_execution_by_id(
         test_case_id,
@@ -156,7 +147,6 @@ def test_report_test_case_result():
         execution_id,
         tbcs_client.APIConnector.test_status_passed
     )
-    time.sleep(1)
 
     execution: dict = connector.get_execution_by_id(
         test_case_id,
