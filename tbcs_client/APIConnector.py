@@ -10,8 +10,10 @@ from typing import List
 """ Class for connecting to a TestBench CS REST-API
 
 The APIConnector class wraps a set of API-calls against the TestBench CS REST-API, that can be used to
-create test_cases within TestBench CS, start test executions and report test results. This class expects
-a JSON-configuration file with name 'tbcs.config.json' to be placed inside your project root.
+create test cases within TestBench CS, start test executions and report test results. This class expects
+the path to a JSON-configuration file for initialization (structure is shown in 'empty.tbcs.config.json'
+in the root of the GitLab-Repository). If no path is given it defaults to a file with name 'tbcs.config.json'
+that must be placed inside your project root.
 
 When provided with valid configuration, you can simply call any of this classes get-, create- and
 report-functions from any instance of this class. Redundant steps such as authenticating with the API
