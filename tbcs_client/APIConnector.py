@@ -29,6 +29,9 @@ class APIConnector:
     test_status_failed: str = 'Failed'
     test_status_in_progress: str = 'InProgress'
     test_status_passed: str = 'Passed'
+    test_case_type_simple: str = 'SimpleTestCase'
+    test_case_type_structured: str = 'StructuredTestCase'
+    test_case_type_checklist: str = 'CheckListTestCase'
 
     __base_url: str
     __headers: dict
@@ -60,14 +63,15 @@ class APIConnector:
     def create_test_case(
             self,
             test_case_name: str,
+            test_case_type: str,
             external_id: str,
-            test_steps: List[str]
+            test_steps: List[str],
     ) -> str:
         response_create: requests.Response = self.__send_request(
             http_method=self.__session.post,
             endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases',
             expected_status_code=201,
-            data=json.dumps({'name': test_case_name})
+            data=json.dumps({'name': test_case_name, 'testCaseType': test_case_type})
         )
 
         test_case_id: str = str(json.loads(response_create.text)['testCaseId'])
@@ -92,7 +96,7 @@ class APIConnector:
         for counter in range(self.__persist_timeout):
             try:
                 written_data: dict = self.get_test_case_by_id(test_case_id)
-                if written_data['externalId'] == external_id:
+                if written_data['automation']['externalId'] == external_id:
                     break
                 elif counter == self.__persist_timeout:
                     raise tbcs_client.APIError('Persistence of test case data not achieved before timeout.')
@@ -107,7 +111,12 @@ class APIConnector:
 
         return test_case_id
 
-    def add_test_step(self, test_case_id: str, test_step: str, previous_test_step_id: str = '-1') -> str:
+    def add_test_step(
+            self,
+            test_case_id: str,
+            test_step: str,
+            previous_test_step_id: str = '-1'
+    ) -> str:
         test_step_data: dict = {
             'testStepBlock': 'Test',
             'description': test_step
@@ -129,7 +138,7 @@ class APIConnector:
         for counter in range(self.__persist_timeout):
             written_data: dict = self.get_test_case_by_id(test_case_id)
             write_completed: bool = False
-            for test_step in written_data['testStepBlocks'][2]['steps']:
+            for test_step in written_data['testSequence']['testStepBlocks'][2]['steps']:
                 if str(test_step['id']) == test_step_id:
                     write_completed = True
                     break
@@ -141,7 +150,11 @@ class APIConnector:
 
         return test_step_id
 
-    def remove_test_step(self, test_case_id: str, test_step_id: str):
+    def remove_test_step(
+            self,
+            test_case_id: str,
+            test_step_id: str
+    ):
         self.__send_request(
             http_method=self.__session.delete,
             endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases/{test_case_id}/testSteps/{test_step_id}',
@@ -151,7 +164,7 @@ class APIConnector:
         for counter in range(self.__persist_timeout):
             written_data: dict = self.get_test_case_by_id(test_case_id)
             write_completed: bool = True
-            for test_step in written_data['testStepBlocks'][2]['steps']:
+            for test_step in written_data['testSequence']['testStepBlocks'][2]['steps']:
                 if str(test_step['id']) == test_step_id:
                     write_completed = False
                     break
@@ -168,7 +181,7 @@ class APIConnector:
         # TODO: As soon as CS allows filters reimplement this method using filters
         response: requests.Response = self.__send_request(
             http_method=self.__session.get,
-            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases/',
+            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases',
             expected_status_code=200
         )
 
@@ -181,7 +194,7 @@ class APIConnector:
                 expected_status_code=200
             )
             test_data: dict = json.loads(response.text)
-            if test_data['externalId'] == external_id:
+            if test_data['automation']['externalId'] == external_id:
                 return test_data
 
         raise tbcs_client.ItemNotFoundError(f'No test case found with external ID: {external_id}')

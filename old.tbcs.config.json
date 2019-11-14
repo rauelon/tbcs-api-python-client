@@ -1,0 +1,9 @@
+{
+  "server_address": "localhost.testbench.com",
+  "tenant_name": "rfimbus",
+  "product_id": 1,
+  "tenant_user": "first",
+  "password": "first123",
+  "use_system_proxy": false,
+  "truststore_path": "/etc/ssl/certs/ca-certificates.crt"
+}
