@@ -6,9 +6,11 @@ import string
 import tbcs_client
 
 test_case_for_validation: dict = {
-    'id': 5,
+    'id': 1,
     'name': 'some',
-    'externalId': '1',
+    'automation': {
+        'externalId': '1'
+    },
     'executions': [{
         'id': 1
     }]
@@ -27,7 +29,7 @@ def get_test_connector() -> tbcs_client.APIConnector:
 
 
 def test_get_test_case_by_external_id():
-    test_case: dict = get_test_connector().get_test_case_by_external_id(test_case_for_validation['externalId'])
+    test_case: dict = get_test_connector().get_test_case_by_external_id(test_case_for_validation['automation']['externalId'])
     assert (test_case['name'] == test_case_for_validation['name'])
     assert (test_case['id'] == test_case_for_validation['id'])
 
@@ -43,7 +45,7 @@ def test_get_test_case_by_external_id_negative():
 def test_get_test_case_by_id():
     test_case: dict = get_test_connector().get_test_case_by_id(str(test_case_for_validation['id']))
     assert (test_case['name'] == test_case_for_validation['name'])
-    assert (test_case['externalId'] == test_case_for_validation['externalId'])
+    assert (test_case['automation']['externalId'] == test_case_for_validation['automation']['externalId'])
 
 
 def test_get_execution_by_id():
@@ -52,7 +54,7 @@ def test_get_execution_by_id():
         str(test_case_for_validation['executions'][0]['id'])
     )
     assert (execution['testCase']['name'] == test_case_for_validation['name'])
-    assert (execution['externalId'] == test_case_for_validation['externalId'])
+    assert (execution['automation']['externalId'] == test_case_for_validation['automation']['externalId'])
 
 
 def test_create_test_case():
@@ -60,15 +62,16 @@ def test_create_test_case():
     external_id: str = new_test_case_external_id()
     test_case_id: str = connector.create_test_case(
         new_test_case_name,
+        tbcs_client.APIConnector.test_case_type_structured,
         external_id,
         new_test_case_test_steps
     )
 
     test_case: dict = connector.get_test_case_by_id(test_case_id)
-    response_steps: List[dict] = test_case['testStepBlocks'][2]['steps']
+    response_steps: List[dict] = test_case['testSequence']['testStepBlocks'][2]['steps']
 
     assert (test_case['name'] == new_test_case_name)
-    assert (test_case['externalId'] == external_id)
+    assert (test_case['automation']['externalId'] == external_id)
     assert (response_steps[0]['description'] == new_test_case_test_steps[0])
     assert (response_steps[1]['description'] == new_test_case_test_steps[1])
     assert (response_steps[2]['description'] == new_test_case_test_steps[2])
@@ -79,6 +82,7 @@ def test_start_execution():
     external_id: str = new_test_case_external_id()
     test_case_id: str = connector.create_test_case(
         new_test_case_name,
+        tbcs_client.APIConnector.test_case_type_structured,
         external_id,
         new_test_case_test_steps
     )
@@ -90,13 +94,14 @@ def test_start_execution():
         execution_id
     )
     assert (execution['testCase']['name'] == new_test_case_name)
-    assert (execution['externalId'] == external_id)
+    assert (execution['automation']['externalId'] == external_id)
 
 
 def test_report_step_result():
     connector: tbcs_client.APIConnector = get_test_connector()
     test_case_id: str = connector.create_test_case(
         new_test_case_name,
+        tbcs_client.APIConnector.test_case_type_structured,
         new_test_case_external_id(),
         new_test_case_test_steps
     )
@@ -119,7 +124,7 @@ def test_report_step_result():
     execution_steps: dict = connector.get_execution_by_id(
         test_case_id,
         execution_id
-    )['testStepBlocks'][2]['steps']
+    )['testSequence']['testStepBlocks'][2]['steps']
 
     assert (execution_steps[0]['result'] == tbcs_client.APIConnector.test_step_status_passed)
     assert (execution_steps[1]['result'] == tbcs_client.APIConnector.test_step_status_failed)
@@ -130,6 +135,7 @@ def test_report_test_case_result():
     connector: tbcs_client.APIConnector = get_test_connector()
     test_case_id: str = connector.create_test_case(
         new_test_case_name,
+        tbcs_client.APIConnector.test_case_type_structured,
         new_test_case_external_id(),
         new_test_case_test_steps
     )
