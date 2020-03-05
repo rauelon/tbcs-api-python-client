@@ -178,26 +178,24 @@ class APIConnector:
             self,
             external_id: str
     ) -> dict:
-        # TODO: As soon as CS allows filters reimplement this method using filters
+        filter: str = f'fieldValue=externalId:equals:{external_id}'
         response: requests.Response = self.__send_request(
             http_method=self.__session.get,
-            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases',
+            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases?{filter}',
             expected_status_code=200
         )
 
         tests: List[dict] = json.loads(response.text)
 
-        for test in tests:
-            response = self.__send_request(
-                http_method=self.__session.get,
-                endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases/{str(test["id"])}',
-                expected_status_code=200
-            )
-            test_data: dict = json.loads(response.text)
-            if test_data['automation']['externalId'] == external_id:
-                return test_data
+        if len(tests) == 0:
+            raise tbcs_client.ItemNotFoundError(f'No test case found with external ID: {external_id}')
 
-        raise tbcs_client.ItemNotFoundError(f'No test case found with external ID: {external_id}')
+        response = self.__send_request(
+            http_method=self.__session.get,
+            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases/{str(tests[0]["id"])}',
+            expected_status_code=200
+        )
+        return json.loads(response.text)
 
     def get_test_case_by_id(
             self,
