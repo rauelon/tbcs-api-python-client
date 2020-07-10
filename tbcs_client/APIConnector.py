@@ -63,6 +63,7 @@ class APIConnector:
     def create_test_case(
             self,
             test_case_name: str,
+            test_case_description: str,
             test_case_type: str,
             external_id: str,
             test_steps: List[str],
@@ -78,7 +79,7 @@ class APIConnector:
 
         test_case_data: dict = {
             'name': test_case_name,
-            'description': {'text': test_case_name},
+            'description': {'text': test_case_description},
             'responsibles': [self.__user_id],
             'customFields': [],
             'isAutomated': True,
@@ -257,6 +258,54 @@ class APIConnector:
             endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/executions/testCases/{test_case_id}/executions/{execution_id}/testSteps/{test_step_id}/result',
             expected_status_code=200,
             data=f'"{result}"'
+        )
+
+    def create_defect(
+            self,
+            test_case_name,
+            test_step_name,
+            message
+    ) -> dict:
+
+        defect_data: dict = {
+            "name": f"{test_case_name}: {test_step_name}",
+            "description": f"Automated Defect. Robot Framework logs '{message}'"
+        }
+
+        response: requests.Response = self.__send_request(
+            http_method=self.__session.post,
+            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/defects',
+            expected_status_code=201,
+            data=json.dumps(defect_data)
+        )
+
+        return json.loads(response.text)
+
+    def assign_defect(
+            self,
+            test_case_id,
+            execution_id,
+            test_step_id,
+            defect_id
+    ):
+        self.__send_request(
+            http_method=self.__session.post,
+            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/executions/testCases/{test_case_id}/executions/{execution_id}/testSteps/{test_step_id}/defects',
+            expected_status_code=201,
+            data=f'"{defect_id}"'
+        )
+
+    def update_execution_status(
+            self,
+            test_case_id,
+            execution_id,
+            status
+    ):
+        self.__send_request(
+            http_method=self.__session.put,
+            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/executions/testCases/{test_case_id}/executions/{execution_id}/status',
+            expected_status_code=200,
+            data=f'"{status}"'
         )
 
     def report_test_case_result(

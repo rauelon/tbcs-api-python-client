@@ -4,3 +4,4 @@
 /.pytest_cache/
 /tbcs.config.json
 /tbcs_api_client.egg-info/
+**/__pycache__
