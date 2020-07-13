@@ -112,6 +112,24 @@ class APIConnector:
 
         return test_case_id
 
+    #TODO: Think about defining a update_test_case method and explicitly using the power of 'HTTP-patch' by maybe using a dictionary {key:value, key2:value2,...} as input arguments and when such a structure will be necessary
+    def update_test_case_description(
+            self,
+            test_case_id: str,
+            test_case_description: str
+    ):
+        test_case_data: dict = {
+            'description': {
+                'text': test_case_description
+            }
+        }
+        self.__send_request(
+            http_method=self.__session.patch,
+            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases/{test_case_id}',
+            expected_status_code=200,
+            data=json.dumps(test_case_data)
+        )
+
     def add_test_step(
             self,
             test_case_id: str,
