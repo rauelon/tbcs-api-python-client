@@ -67,6 +67,8 @@ class APIConnector:
             test_case_type: str,
             external_id: str,
             test_steps: List[str],
+            test_setup: List[str],
+            test_teardown: List[str]
     ) -> str:
         response_create: requests.Response = self.__send_request(
             http_method=self.__session.post,
@@ -107,8 +109,15 @@ class APIConnector:
                     raise error
                 time.sleep(1)
 
+
+        for test_step in test_setup:
+            self.add_test_step(test_case_id, test_step, 0)
         for test_step in test_steps:
-            self.add_test_step(test_case_id, test_step)
+            self.add_test_step(test_case_id, test_step, 2)
+        for test_step in test_teardown:
+            self.add_test_step(test_case_id, test_step, 4)
+
+        
 
         return test_case_id
 
@@ -134,10 +143,12 @@ class APIConnector:
             self,
             test_case_id: str,
             test_step: str,
+            test_step_block: int,
+            test_block: List = ['Preparation', 'Navigation', 'Test', 'ResultCheck', 'CleanUp'],
             previous_test_step_id: str = '-1'
     ) -> str:
         test_step_data: dict = {
-            'testStepBlock': 'Test',
+            'testStepBlock': test_block[test_step_block],
             'description': test_step
         }
         if not previous_test_step_id == '-1':
@@ -157,7 +168,7 @@ class APIConnector:
         for counter in range(self.__persist_timeout):
             written_data: dict = self.get_test_case_by_id(test_case_id)
             write_completed: bool = False
-            for test_step in written_data['testSequence']['testStepBlocks'][2]['steps']:
+            for test_step in written_data['testSequence']['testStepBlocks'][test_step_block]['steps']:
                 if str(test_step['id']) == test_step_id:
                     write_completed = True
                     break
@@ -172,7 +183,9 @@ class APIConnector:
     def remove_test_step(
             self,
             test_case_id: str,
-            test_step_id: str
+            test_step_id: str,
+            test_step_block: int,
+            test_block: List[str] = ['Preparation', 'Navigation', 'Test', 'ResultCheck', 'CleanUp'] #noch an Anfang schieben und dann mit self. aufrufen.
     ):
         self.__send_request(
             http_method=self.__session.delete,
@@ -183,7 +196,7 @@ class APIConnector:
         for counter in range(self.__persist_timeout):
             written_data: dict = self.get_test_case_by_id(test_case_id)
             write_completed: bool = True
-            for test_step in written_data['testSequence']['testStepBlocks'][2]['steps']:
+            for test_step in written_data['testSequence']['testStepBlocks'][test_step_block]['steps']:
                 if str(test_step['id']) == test_step_id:
                     write_completed = False
                     break
