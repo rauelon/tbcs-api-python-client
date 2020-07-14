@@ -300,7 +300,7 @@ class APIConnector:
 
         defect_data: dict = {
             "name": f"{test_case_name}: {test_step_name}",
-            "description": f"Automated Defect. Robot Framework logs '{message}'"
+            "description": f"Automated Defect in Testcase '{test_case_name}' and its Teststep '{test_step_name}'.\nRobot Framework logs '{message}'"
         }
 
         response: requests.Response = self.__send_request(
