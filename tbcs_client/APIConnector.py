@@ -3,9 +3,9 @@ import json
 import os
 import time
 
-import tbcs_client
-
 from typing import List
+
+from tbcs_client import ItemNotFoundError, APIError
 
 """ Class for connecting to a TestBench CS REST-API
 
@@ -22,16 +22,25 @@ are handled internally.
 
 
 class APIConnector:
-    test_step_status_undefined: str = 'Undefined'
-    test_step_status_passed: str = 'Passed'
-    test_step_status_failed: str = 'Failed'
-    test_status_calculated: str = 'Calculated'
-    test_status_failed: str = 'Failed'
-    test_status_in_progress: str = 'InProgress'
-    test_status_passed: str = 'Passed'
-    test_case_type_simple: str = 'SimpleTestCase'
-    test_case_type_structured: str = 'StructuredTestCase'
-    test_case_type_checklist: str = 'CheckListTestCase'
+    TEST_CASE_TYPE_SIMPLE: str = 'SimpleTestCase'
+    TEST_CASE_TYPE_STRUCTURED: str = 'StructuredTestCase'
+    TEST_CASE_TYPE_CHECKLIST: str = 'CheckListTestCase'
+
+    TEST_BLOCK_PREPARATION_NAME: str = 'Preparation'
+    TEST_BLOCK_NAVIGATION_NAME: str = 'Navigation'
+    TEST_BLOCK_TEST_NAME: str = 'Test'
+    TEST_BLOCK_RESULTCHECK_NAME: str = 'ResultCheck'
+    TEST_BLOCK_CLEANUP_NAME: str = 'CleanUp'
+
+    TEST_BLOCK_PREPARATION_INDEX: int = 0
+    TEST_BLOCK_NAVIGATION_INDEX: int = 1
+    TEST_BLOCK_TEST_INDEX: int = 2
+    TEST_BLOCK_RESULTCHECK_INDEX: int = 3
+    TEST_BLOCK_CLEANUP_INDEX: int = 4
+
+    TEST_STEP_STATUS_UNDEFINED: str = 'Undefined'
+    TEST_STEP_STATUS_PASSED: str = 'Passed'
+    TEST_STEP_STATUS_FAILED: str = 'Failed'
 
     __base_url: str
     __headers: dict
@@ -66,9 +75,6 @@ class APIConnector:
             test_case_description: str,
             test_case_type: str,
             external_id: str,
-            test_steps: List[str],
-            test_setup: List[str],
-            test_teardown: List[str]
     ) -> str:
         response_create: requests.Response = self.__send_request(
             http_method=self.__session.post,
@@ -102,34 +108,23 @@ class APIConnector:
                 if written_data['automation']['externalId'] == external_id:
                     break
                 elif counter == self.__persist_timeout:
-                    raise tbcs_client.APIError('Persistence of test case data not achieved before timeout.')
+                    raise APIError('Persistence of test case data not achieved before timeout.')
                 time.sleep(1)
-            except tbcs_client.APIError as error:
+            except APIError as error:
                 if counter == self.__persist_timeout:
                     raise error
                 time.sleep(1)
 
-
-        for test_step in test_setup:
-            self.add_test_step(test_case_id, test_step, 0)
-        for test_step in test_steps:
-            self.add_test_step(test_case_id, test_step, 2)
-        for test_step in test_teardown:
-            self.add_test_step(test_case_id, test_step, 4)
-
-        
-
         return test_case_id
 
-    #TODO: Think about defining a update_test_case method and explicitly using the power of 'HTTP-patch' by maybe using a dictionary {key:value, key2:value2,...} as input arguments and when such a structure will be necessary
     def update_test_case_description(
             self,
             test_case_id: str,
-            test_case_description: str
-    ):
+            new_description: str
+    ) -> None:
         test_case_data: dict = {
             'description': {
-                'text': test_case_description
+                'text': new_description
             }
         }
         self.__send_request(
@@ -142,14 +137,13 @@ class APIConnector:
     def add_test_step(
             self,
             test_case_id: str,
-            test_step: str,
-            test_step_block: int,
-            test_block: List = ['Preparation', 'Navigation', 'Test', 'ResultCheck', 'CleanUp'],
-            previous_test_step_id: str = '-1'
+            new_test_step: str,
+            previous_test_step_id: str = '-1',
+            test_block_name: str = TEST_BLOCK_TEST_NAME
     ) -> str:
         test_step_data: dict = {
-            'testStepBlock': test_block[test_step_block],
-            'description': test_step
+            'testStepBlock': test_block_name,
+            'description': new_test_step
         }
         if not previous_test_step_id == '-1':
             test_step_data['position'] = {
@@ -164,29 +158,29 @@ class APIConnector:
             data=json.dumps(test_step_data)
         )
 
-        test_step_id: str = str(json.loads(response_create.text)['testStepId'])
+        new_test_step_id: str = str(json.loads(response_create.text)['testStepId'])
+
         for counter in range(self.__persist_timeout):
             written_data: dict = self.get_test_case_by_id(test_case_id)
             write_completed: bool = False
-            for test_step in written_data['testSequence']['testStepBlocks'][test_step_block]['steps']:
-                if str(test_step['id']) == test_step_id:
+            for test_step in written_data['testSequence']['testStepBlocks'][APIConnector.get_test_block_index_by_name(test_block_name)]['steps']:
+                if str(test_step['id']) == new_test_step_id:
                     write_completed = True
                     break
             if write_completed:
                 break
             elif counter == self.__persist_timeout:
-                raise tbcs_client.APIError('Persistence of test step not achieved before timeout.')
+                raise APIError('Persistence of test step not achieved before timeout.')
             time.sleep(1)
 
-        return test_step_id
+        return new_test_step_id
 
     def remove_test_step(
             self,
             test_case_id: str,
             test_step_id: str,
-            test_step_block: int,
-            test_block: List[str] = ['Preparation', 'Navigation', 'Test', 'ResultCheck', 'CleanUp'] #noch an Anfang schieben und dann mit self. aufrufen.
-    ):
+            test_block_name: str = TEST_BLOCK_TEST_NAME,
+    ) -> None:
         self.__send_request(
             http_method=self.__session.delete,
             endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases/{test_case_id}/testSteps/{test_step_id}',
@@ -196,38 +190,33 @@ class APIConnector:
         for counter in range(self.__persist_timeout):
             written_data: dict = self.get_test_case_by_id(test_case_id)
             write_completed: bool = True
-            for test_step in written_data['testSequence']['testStepBlocks'][test_step_block]['steps']:
+            for test_step in written_data['testSequence']['testStepBlocks'][APIConnector.get_test_block_index_by_name(test_block_name)]['steps']:
                 if str(test_step['id']) == test_step_id:
                     write_completed = False
                     break
             if write_completed:
                 break
             elif counter == self.__persist_timeout:
-                raise tbcs_client.APIError('Persistence of test step not achieved before timeout.')
+                raise APIError('Persistence of test step not achieved before timeout.')
             time.sleep(1)
 
     def get_test_case_by_external_id(
             self,
             external_id: str
     ) -> dict:
-        filter: str = f'fieldValue=externalId:equals:{external_id}'
+        search_filter: str = f'fieldValue=externalId:equals:{external_id}'
         response: requests.Response = self.__send_request(
             http_method=self.__session.get,
-            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases?{filter}',
+            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases?{search_filter}',
             expected_status_code=200
         )
 
         tests: List[dict] = json.loads(response.text)
 
         if len(tests) == 0:
-            raise tbcs_client.ItemNotFoundError(f'No test case found with external ID: {external_id}')
+            raise ItemNotFoundError(f'No test case found with external ID: {external_id}')
 
-        response = self.__send_request(
-            http_method=self.__session.get,
-            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/specifications/testCases/{str(tests[0]["id"])}',
-            expected_status_code=200
-        )
-        return json.loads(response.text)
+        return self.get_test_case_by_id(str(tests[0]["id"]))
 
     def get_test_case_by_id(
             self,
@@ -255,11 +244,11 @@ class APIConnector:
 
         for counter in range(self.__persist_timeout):
             try:
-                written_data: dict = self.get_execution_by_id(test_case_id, execution_id)
+                self.get_execution_by_id(test_case_id, execution_id)
                 break
-            except:
+            except APIError:
                 if counter == self.__persist_timeout:
-                    raise tbcs_client.APIError('Persistence of execution not achieved before timeout.')
+                    raise APIError('Persistence of execution not achieved before timeout.')
                 time.sleep(1)
 
         return execution_id
@@ -279,11 +268,11 @@ class APIConnector:
 
     def report_step_result(
             self,
-            test_case_id,
-            execution_id,
-            test_step_id,
-            result
-    ):
+            test_case_id: str,
+            execution_id: str,
+            test_step_id: str,
+            result: str
+    ) -> None:
         self.__send_request(
             http_method=self.__session.put,
             endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/executions/testCases/{test_case_id}/executions/{execution_id}/testSteps/{test_step_id}/result',
@@ -293,14 +282,12 @@ class APIConnector:
 
     def create_defect(
             self,
-            test_case_name,
-            test_step_name,
-            message
-    ) -> dict:
-
+            name: str,
+            message: str
+    ) -> str:
         defect_data: dict = {
-            "name": f"{test_case_name}: {test_step_name}",
-            "description": f"Automated Defect in Testcase '{test_case_name}' and its Teststep '{test_step_name}'.\nRobot Framework logs '{message}'"
+            "name": f'{name}',
+            "description": f'{message}'
         }
 
         response: requests.Response = self.__send_request(
@@ -310,49 +297,20 @@ class APIConnector:
             data=json.dumps(defect_data)
         )
 
-        return json.loads(response.text)
+        return str(json.loads(response.text)['defectId'])
 
     def assign_defect(
             self,
-            test_case_id,
-            execution_id,
-            test_step_id,
-            defect_id
-    ):
+            test_case_id: str,
+            execution_id: str,
+            test_step_id: str,
+            defect_id: str
+    ) -> None:
         self.__send_request(
             http_method=self.__session.post,
             endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/executions/testCases/{test_case_id}/executions/{execution_id}/testSteps/{test_step_id}/defects',
             expected_status_code=201,
             data=f'"{defect_id}"'
-        )
-
-    def update_execution_status(
-            self,
-            test_case_id,
-            execution_id,
-            status
-    ):
-        self.__send_request(
-            http_method=self.__session.put,
-            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/executions/testCases/{test_case_id}/executions/{execution_id}/status',
-            expected_status_code=200,
-            data=f'"{status}"'
-        )
-
-    def report_test_case_result(
-            self,
-            test_case_id,
-            execution_id,
-            result
-    ):
-        result_data: dict = {
-            'executionStatus': result
-        }
-        self.__send_request(
-            http_method=self.__session.patch,
-            endpoint=f'/api/tenants/{self.__tenant_id}/products/{self.__product_id}/executions/testCases/{test_case_id}/executions/{execution_id}',
-            expected_status_code=200,
-            data=json.dumps(result_data)
         )
 
     def __send_request(
@@ -377,9 +335,9 @@ class APIConnector:
         elif response.status_code == expected_status_code:
             return response
         else:
-            raise tbcs_client.APIError(f'{endpoint} failed with message {response.text}')
+            raise APIError(f'{endpoint} failed with message {response.text}')
 
-    def __log_in(self):
+    def __log_in(self) -> None:
         self.__headers: dict = {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
@@ -406,3 +364,18 @@ class APIConnector:
         }
         self.__tenant_id = response_data['tenantId']
         self.__user_id = response_data['userId']
+
+    @staticmethod
+    def get_test_block_index_by_name(name: str) -> int:
+        if name == APIConnector.TEST_BLOCK_PREPARATION_NAME:
+            return APIConnector.TEST_BLOCK_PREPARATION_INDEX
+        elif name == APIConnector.TEST_BLOCK_NAVIGATION_NAME:
+            return APIConnector.TEST_BLOCK_NAVIGATION_INDEX
+        elif name == APIConnector.TEST_BLOCK_TEST_NAME:
+            return APIConnector.TEST_BLOCK_TEST_INDEX
+        elif name == APIConnector.TEST_BLOCK_RESULTCHECK_NAME:
+            return APIConnector.TEST_BLOCK_RESULTCHECK_INDEX
+        elif name == APIConnector.TEST_BLOCK_CLEANUP_NAME:
+            return APIConnector.TEST_BLOCK_CLEANUP_INDEX
+        else:
+            raise APIError(f'TestBlock {name} does not exist')

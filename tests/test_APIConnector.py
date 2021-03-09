@@ -1,161 +1,109 @@
-from typing import List
-import json
+from typing import List, Dict
 import random
 import string
 
+import pytest
+
 import tbcs_client
 
-test_case_for_validation: dict = {
-    'id': 1,
-    'name': 'some',
-    'automation': {
-        'externalId': '1'
-    },
-    'executions': [{
-        'id': 1
-    }]
-}
+connector: tbcs_client.APIConnector = tbcs_client.APIConnector()
 
-new_test_case_name: str = 'test_create_test_case'
-new_test_case_test_steps: List[str] = ['first step', 'second step', 'third step']
+new_test_case_name: str = 'Python APIConnector Test'
+new_test_case_description: str = 'Description'
+new_test_case_test_steps: List[Dict] = [
+    {'description': 'first step', 'id': '-1'},
+    {'description': 'second step', 'id': '-1'},
+    {'description': 'third step', 'id': '-1'}
+    ]
+new_test_case_external_id: str = ''.join(random.choices(string.ascii_letters + string.digits, k=24))
 
+new_defect_name: str = 'Python APIConnector Defect'
+new_defect_message: str = 'Message'
 
-def new_test_case_external_id() -> str:
-    return ''.join(random.choices(string.ascii_letters + string.digits, k=24))
-
-
-def get_test_connector() -> tbcs_client.APIConnector:
-    return tbcs_client.APIConnector()
+new_test_case_id: str
+new_execution_id: str
+new_defect_id: str
 
 
-def test_get_test_case_by_external_id():
-    test_case: dict = get_test_connector().get_test_case_by_external_id(test_case_for_validation['automation']['externalId'])
-    assert (test_case['name'] == test_case_for_validation['name'])
-    assert (test_case['id'] == test_case_for_validation['id'])
-
-
-def test_get_test_case_by_external_id_negative():
-    try:
-        test_case: dict = get_test_connector().get_test_case_by_external_id('some not existing external ID')
-        raise Exception(f'Test case was matched. Data returned: {json.dumps(test_case)}')
-    except tbcs_client.ItemNotFoundError:
-        pass
-
-
-def test_get_test_case_by_id():
-    test_case: dict = get_test_connector().get_test_case_by_id(str(test_case_for_validation['id']))
-    assert (test_case['name'] == test_case_for_validation['name'])
-    assert (test_case['automation']['externalId'] == test_case_for_validation['automation']['externalId'])
-
-
-def test_get_execution_by_id():
-    execution: dict = get_test_connector().get_execution_by_id(
-        str(test_case_for_validation['id']),
-        str(test_case_for_validation['executions'][0]['id'])
-    )
-    assert (execution['testCase']['name'] == test_case_for_validation['name'])
-    assert (execution['automation']['externalId'] == test_case_for_validation['automation']['externalId'])
-
-
-def test_create_test_case():
-    connector: tbcs_client.APIConnector = get_test_connector()
-    external_id: str = new_test_case_external_id()
-    test_case_id: str = connector.create_test_case(
+@pytest.mark.dependency()
+def test_create_test_case_and_get_test_case_by_id():
+    global new_test_case_id
+    new_test_case_id = connector.create_test_case(
         new_test_case_name,
-        tbcs_client.APIConnector.test_case_type_structured,
-        external_id,
-        new_test_case_test_steps
+        new_test_case_description,
+        tbcs_client.APIConnector.TEST_CASE_TYPE_STRUCTURED,
+        new_test_case_external_id
     )
 
-    test_case: dict = connector.get_test_case_by_id(test_case_id)
-    response_steps: List[dict] = test_case['testSequence']['testStepBlocks'][2]['steps']
+    test_case: dict = connector.get_test_case_by_id(new_test_case_id)
 
     assert (test_case['name'] == new_test_case_name)
-    assert (test_case['automation']['externalId'] == external_id)
-    assert (response_steps[0]['description'] == new_test_case_test_steps[0])
-    assert (response_steps[1]['description'] == new_test_case_test_steps[1])
-    assert (response_steps[2]['description'] == new_test_case_test_steps[2])
+    assert (test_case['description'] == new_test_case_description)
+    assert (test_case['automation']['externalId'] == new_test_case_external_id)
 
 
-def test_start_execution():
-    connector: tbcs_client.APIConnector = get_test_connector()
-    external_id: str = new_test_case_external_id()
-    test_case_id: str = connector.create_test_case(
-        new_test_case_name,
-        tbcs_client.APIConnector.test_case_type_structured,
-        external_id,
-        new_test_case_test_steps
-    )
-
-    execution_id: str = connector.start_execution(test_case_id)
-
-    execution: dict = connector.get_execution_by_id(
-        test_case_id,
-        execution_id
-    )
-    assert (execution['testCase']['name'] == new_test_case_name)
-    assert (execution['automation']['externalId'] == external_id)
+@pytest.mark.dependency(depends=["test_create_test_case_and_get_test_case_by_id"])
+def test_get_test_case_by_external_id():
+    test_case: dict = connector.get_test_case_by_external_id(new_test_case_external_id)
+    assert (str(test_case['id']) == new_test_case_id)
 
 
+@pytest.mark.dependency(depends=["test_create_test_case_and_get_test_case_by_id"])
+def test_update_test_case_description():
+    new_description: str = "New"
+    connector.update_test_case_description(new_test_case_id, new_description)
+    test_case: dict = connector.get_test_case_by_id(new_test_case_id)
+
+    assert (test_case['description'] == new_description)
+
+
+@pytest.mark.dependency(depends=["test_create_test_case_and_get_test_case_by_id"])
+def test_add_test_step():
+    new_test_case_test_steps[0]['id'] = connector.add_test_step(new_test_case_id, new_test_case_test_steps[0]['description'])
+    new_test_case_test_steps[1]['id'] = connector.add_test_step(new_test_case_id, new_test_case_test_steps[1]['description'])
+    new_test_case_test_steps[2]['id'] = connector.add_test_step(new_test_case_id, new_test_case_test_steps[2]['description'], new_test_case_test_steps[0]['id'])
+
+    test_steps: List = connector.get_test_case_by_id(new_test_case_id)['testSequence']['testStepBlocks'][tbcs_client.APIConnector.get_test_block_index_by_name(tbcs_client.APIConnector.TEST_BLOCK_TEST_NAME)]['steps']
+
+    assert (str(test_steps[0]['id']) == new_test_case_test_steps[0]['id'])
+    assert (str(test_steps[1]['id']) == new_test_case_test_steps[2]['id'])
+    assert (str(test_steps[2]['id']) == new_test_case_test_steps[1]['id'])
+
+
+@pytest.mark.dependency(depends=["test_add_test_step"])
+def test_remove_test_step():
+    connector.remove_test_step(new_test_case_id, new_test_case_test_steps[2]['id'])
+
+    test_steps: List = connector.get_test_case_by_id(new_test_case_id)['testSequence']['testStepBlocks'][tbcs_client.APIConnector.get_test_block_index_by_name(tbcs_client.APIConnector.TEST_BLOCK_TEST_NAME)]['steps']
+
+    assert (str(test_steps[0]['id']) == new_test_case_test_steps[0]['id'])
+    assert (str(test_steps[1]['id']) == new_test_case_test_steps[1]['id'])
+
+
+@pytest.mark.dependency(depends=["test_remove_test_step"])
+def test_start_execution_and_get_execution_by_id():
+    global new_execution_id
+    new_execution_id = connector.start_execution(new_test_case_id)
+
+    execution: dict = connector.get_execution_by_id(new_test_case_id, new_execution_id)
+    assert (str(execution['testCase']['id']) == new_test_case_id)
+
+
+@pytest.mark.dependency(depends=["test_start_execution_and_get_execution_by_id"])
 def test_report_step_result():
-    connector: tbcs_client.APIConnector = get_test_connector()
-    test_case_id: str = connector.create_test_case(
-        new_test_case_name,
-        tbcs_client.APIConnector.test_case_type_structured,
-        new_test_case_external_id(),
-        new_test_case_test_steps
-    )
+    connector.report_step_result(new_test_case_id, new_execution_id, new_test_case_test_steps[0]['id'], tbcs_client.APIConnector.TEST_STEP_STATUS_PASSED)
+    connector.report_step_result(new_test_case_id, new_execution_id, new_test_case_test_steps[1]['id'], tbcs_client.APIConnector.TEST_STEP_STATUS_FAILED)
 
-    execution_id: str = connector.start_execution(test_case_id)
-
-    connector.report_step_result(
-        test_case_id,
-        execution_id,
-        '1',
-        tbcs_client.APIConnector.test_step_status_passed
-    )
-    connector.report_step_result(
-        test_case_id,
-        execution_id,
-        '2',
-        tbcs_client.APIConnector.test_step_status_failed
-    )
-
-    execution_steps: dict = connector.get_execution_by_id(
-        test_case_id,
-        execution_id
-    )['testSequence']['testStepBlocks'][2]['steps']
-
-    assert (execution_steps[0]['result'] == tbcs_client.APIConnector.test_step_status_passed)
-    assert (execution_steps[1]['result'] == tbcs_client.APIConnector.test_step_status_failed)
-    assert (execution_steps[2]['result'] == tbcs_client.APIConnector.test_step_status_undefined)
+    execution_steps: dict = connector.get_execution_by_id(new_test_case_id, new_execution_id)['testSequence']['testStepBlocks'][tbcs_client.APIConnector.get_test_block_index_by_name(tbcs_client.APIConnector.TEST_BLOCK_TEST_NAME)]['steps']
+    assert (execution_steps[0]['result'] == tbcs_client.APIConnector.TEST_STEP_STATUS_PASSED)
+    assert (execution_steps[1]['result'] == tbcs_client.APIConnector.TEST_STEP_STATUS_FAILED)
 
 
-def test_report_test_case_result():
-    connector: tbcs_client.APIConnector = get_test_connector()
-    test_case_id: str = connector.create_test_case(
-        new_test_case_name,
-        tbcs_client.APIConnector.test_case_type_structured,
-        new_test_case_external_id(),
-        new_test_case_test_steps
-    )
+@pytest.mark.dependency(depends=["test_report_step_result"])
+def test_create_and_assign_defect():
+    global new_defect_id
+    new_defect_id = connector.create_defect(new_defect_name, new_defect_message)
+    connector.assign_defect(new_test_case_id, new_execution_id, new_test_case_test_steps[1]['id'], new_defect_id)
 
-    execution_id: str = connector.start_execution(test_case_id)
-
-    execution: dict = connector.get_execution_by_id(
-        test_case_id,
-        execution_id
-    )
-    assert (execution['overallStatus']['status'] == tbcs_client.APIConnector.test_status_in_progress)
-
-    connector.report_test_case_result(
-        test_case_id,
-        execution_id,
-        tbcs_client.APIConnector.test_status_passed
-    )
-
-    execution: dict = connector.get_execution_by_id(
-        test_case_id,
-        execution_id
-    )
-    assert (execution['overallStatus']['status'] == tbcs_client.APIConnector.test_status_passed)
+    execution_steps: dict = connector.get_execution_by_id(new_test_case_id, new_execution_id)['testSequence']['testStepBlocks'][tbcs_client.APIConnector.get_test_block_index_by_name(tbcs_client.APIConnector.TEST_BLOCK_TEST_NAME)]['steps']
+    assert (str(execution_steps[1]['defectIds'][0]) == new_defect_id)
