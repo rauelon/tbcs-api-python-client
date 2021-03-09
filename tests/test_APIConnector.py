@@ -7,6 +7,7 @@ import pytest
 import tbcs_client
 
 connector: tbcs_client.APIConnector = tbcs_client.APIConnector()
+connector.log_in()
 
 new_test_case_name: str = 'Python APIConnector Test'
 new_test_case_description: str = 'Description'

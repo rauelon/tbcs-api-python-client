@@ -43,7 +43,7 @@ class APIConnector:
     TEST_STEP_STATUS_FAILED: str = 'Failed'
 
     __base_url: str
-    __headers: dict
+    __headers: dict == {}
     __tenant_name: str
     __tenant_id: int = -1
     __username: str
@@ -67,7 +67,6 @@ class APIConnector:
 
             self.__session = requests.Session()
             self.__session.verify = config_data['truststore_path'] if not os.name == 'nt' else True
-            self.__log_in()
 
     def create_test_case(
             self,
@@ -330,14 +329,14 @@ class APIConnector:
             if endpoint == '/api/tenants/login/session':
                 raise Exception('Unable to authenticate', response)
             else:
-                self.__log_in()
+                self.log_in()
                 return self.__send_request(http_method, endpoint, expected_status_code, data)
         elif response.status_code == expected_status_code:
             return response
         else:
             raise APIError(f'{endpoint} failed with message {response.text}')
 
-    def __log_in(self) -> None:
+    def log_in(self) -> None:
         self.__headers: dict = {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
