@@ -5,7 +5,8 @@ import time
 
 from typing import List
 
-from tbcs_client import ItemNotFoundError, APIError
+from tbcs_client.APIError import APIError
+from tbcs_client.ItemNotFoundError import ItemNotFoundError
 
 """ Class for connecting to a TestBench CS REST-API
 
